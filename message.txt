@@ -1,0 +1,361 @@
+so far iv been using frida set it up on my pc and phone connecting my phone through usb cable and adb with my pc and right now iv had this script that i luanch with frida with the command : frida -U -f yg.cnuigeth -l C:\Users\yasse\Desktop\Bypass\login_bypass.js
+and another script with command 
+frida -U -f yg.cnuigeth -l C:\Users\yasse\Desktop\Bypass\message_bypass.js
+message script is this one :
+
+
+
+Java.perform(function () {
+    console.log("[*] Message-Level Bypass Script");
+    console.log("[*] This approach modifies the result messages directly");
+    
+    setTimeout(function() {
+        try {
+            // Hook the message handler class directly
+            var handlerClass = "com.facebook.katana.act.LoginActivity$斢衔鬹愠狱堪钓骖禞吳郀沜跲褼弦硠餓軓刧篖憯秃弳垜撤";
+            var Handler = Java.use(handlerClass);
+            
+            Handler.handleMessage.implementation = function (message) {
+                console.log("\n[INTERCEPT] Message Handler Called");
+                console.log("[INTERCEPT] Message what: " + message.what);
+                console.log("[INTERCEPT] Message obj: " + message.obj);
+                
+                // Check if this is a login result message
+                if (message.obj && message.obj.toString().includes("NOT REGISTERED")) {
+                    console.log("[BYPASS] Found failure message - modifying to success");
+                    
+                    // Create new success message
+                    var newMessage = message;
+                    newMessage.obj = "SUCCESS";  // Try different values if this doesn't work
+                    
+                    console.log("[BYPASS] Modified message obj to: " + newMessage.obj);
+                    return this.handleMessage(newMessage);
+                }
+                
+                // For any other message, pass through normally
+                return this.handleMessage(message);
+            };
+            
+            console.log("[SUCCESS] Message handler hooked!");
+            
+        } catch (e) {
+            console.log("[ERROR] Failed to hook message handler: " + e);
+        }
+        
+        // Also hook the Login method to prevent crashes
+        try {
+            var LoginActivity = Java.use("com.facebook.katana.act.LoginActivity");
+            
+            // Simplified root bypass
+            LoginActivity.validateRootAccess.implementation = function () {
+                console.log("[BYPASS] Root check bypassed");
+                return;
+            };
+            
+            console.log("[SUCCESS] Root bypass installed!");
+            
+        } catch (e) {
+            console.log("[ERROR] Failed to install root bypass: " + e);
+        }
+        
+    }, 1000);
+});
+
+
+and heres the loginscript:
+
+
+
+Java.perform(function () {
+    console.log("[*] Enhanced Login Bypass Script v2");
+    console.log("[*] Targeting com.facebook.katana.act.LoginActivity");
+    
+    // Wait for the class to be fully loaded
+    setTimeout(function() {
+        try {
+            var LoginActivity = Java.use("com.facebook.katana.act.LoginActivity");
+            
+            // Method 1: Hook the Check method more aggressively
+            console.log("[*] Attempting to hook Check method...");
+            
+            // Try to hook all overloads of Check
+            var checkMethod = LoginActivity.Check;
+            if (checkMethod) {
+                checkMethod.overloads.forEach(function(overload) {
+                    console.log("[*] Found Check overload: " + overload);
+                    overload.implementation = function() {
+                        console.log("\n[BYPASS] Check() called with arguments:");
+                        for (var i = 0; i < arguments.length; i++) {
+                            console.log("    arg[" + i + "]: " + arguments[i]);
+                        }
+                        
+                        // Call original to see what happens
+                        var originalResult = this.Check.apply(this, arguments);
+                        console.log("[ORIGINAL] Check() returned: '" + originalResult + "'");
+                        
+                        // Try different success responses
+                        var successResponses = ["SUCCESS", "REGISTERED", "OK", "VALID", "AUTHORIZED", ""];
+                        var bypassResult = "SUCCESS";
+                        
+                        console.log("[BYPASS] Returning: '" + bypassResult + "' instead");
+                        return bypassResult;
+                    };
+                });
+            }
+            
+            // Method 2: Hook the message handler to modify the response
+            try {
+                var handlerClass = "com.facebook.katana.act.LoginActivity$斢衔鬹愠狱堪钓骖禞吳郀沜跲褼弦硠餓軓刧篖憯秃弳垜撤";
+                var Handler = Java.use(handlerClass);
+                
+                Handler.handleMessage.implementation = function (message) {
+                    console.log("\n[INTERCEPT] Handler.handleMessage() called");
+                    console.log("[INTERCEPT] Original message obj: " + message.obj);
+                    
+                    // Modify the message object if it contains failure response
+                    if (message.obj && message.obj.toString().includes("NOT REGISTERED")) {
+                        console.log("[BYPASS] Modifying failure message to success");
+                        
+                        // Try to change the message object
+                        message.obj = "SUCCESS";
+                        // Or try different values: "REGISTERED", "OK", "VALID"
+                    }
+                    
+                    console.log("[INTERCEPT] Modified message obj: " + message.obj);
+                    return this.handleMessage(message);
+                };
+            } catch (e) {
+                console.log("[WARNING] Could not hook handler: " + e);
+            }
+            
+            // Method 3: Hook Login method to intercept before Check is called
+            LoginActivity.Login.implementation = function (context, key) {
+                console.log("\n[INFO] Login() called with key: '" + key + "'");
+                
+                // Don't call the original Login - implement our own success logic
+                console.log("[BYPASS] Bypassing original Login method");
+                
+                // Try to trigger success directly
+                try {
+                    // Look for success handling methods
+                    console.log("[BYPASS] Attempting to trigger success flow");
+                    
+                    // You might need to call success handler here
+                    // For now, just return without calling original
+                    return;
+                } catch (e) {
+                    console.log("[INFO] Direct success trigger failed, calling original: " + e);
+                    return this.Login(context, key);
+                }
+            };
+            
+            // Method 4: Bypass root detection
+            LoginActivity.validateRootAccess.implementation = function () {
+                console.log("\n[BYPASS] validateRootAccess() - bypassed");
+                return;
+            };
+            
+            // Method 5: Hook Sign method
+            LoginActivity.Sign.implementation = function () {
+                console.log("\n[INFO] Sign() called");
+                var originalResult = this.Sign();
+                console.log("[INFO] Sign() returned: '" + originalResult + "'");
+                return originalResult;
+            };
+            
+            // Method 6: Try to find and hook success/failure handling methods
+            try {
+                // Look for methods that might handle login results
+                var methods = LoginActivity.class.getDeclaredMethods();
+                methods.forEach(function(method) {
+                    var methodName = method.getName();
+                    // Look for methods that might handle success/failure
+                    if (methodName.includes("success") || methodName.includes("fail") || 
+                        methodName.includes("result") || methodName.includes("response")) {
+                        console.log("[*] Found potential result handler: " + methodName);
+                    }
+                });
+            } catch (e) {
+                console.log("[INFO] Could not enumerate additional methods: " + e);
+            }
+            
+            console.log("[SUCCESS] Enhanced hooks installed!");
+            console.log("[*] Try logging in now...");
+            
+        } catch (e) {
+            console.log("[ERROR] Failed to hook LoginActivity: " + e);
+            console.log("[ERROR] Stack trace: " + e.stack);
+        }
+    }, 2000); // Wait 2 seconds for class loading
+    
+    // Alternative approach: Hook at JNI level for native methods
+    console.log("[*] Setting up JNI hooks for native methods...");
+    
+    // Hook JNI calls to catch native Check method
+    var System = Java.use("java.lang.System");
+    System.loadLibrary.overload("java.lang.String").implementation = function(libname) {
+        console.log("[JNI] Loading library: " + libname);
+        var result = this.loadLibrary(libname);
+        
+        // If this app loads a native library, we might need to hook at native level
+        if (libname.includes("native") || libname.includes("jni") || libname.includes("check")) {
+            console.log("[JNI] Potentially important library loaded: " + libname);
+        }
+        
+        return result;
+    };
+});
+
+
+
+
+ 
+i will share with u the output of the login_bypass.js script:
+this one crashes the app directly
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+PS C:\Users\yasse> frida -U -f yg.cnuigeth -l C:\Users\yasse\Desktop\Bypass\loginbypass.js
+     __
+    /   |   Frida 17.2.15 - A world-class dynamic instrumentation toolkit
+   | (| |
+    >   |   Commands:
+   // ||       help      -> Displays the help system
+   . . . .       object?   -> Display information about 'object'
+   . . . .       exit/quit -> Exit
+   . . . .
+   . . . .   More info at https://frida.re/docs/home/
+   . . . .
+   . . . .   Connected to SM S918B (id=R3CW30SHFZB)
+Spawned yg.cnuigeth. Resuming main thread!
+[SM S918B::yg.cnuigeth ]-> [] Enhanced Login Bypass Script v2
+[] Targeting com.facebook.katana.act.LoginActivity
+[] Setting up JNI hooks for native methods...
+[] Attempting to hook Check method...
+[] Found Check overload: function Check(android.content.Context, java.lang.String): java.lang.String
+[SUCCESS] Enhanced hooks installed!
+[] Try logging in now...
+[JNI] Loading library: native
+Process crashed: java.lang.UnsatisfiedLinkError: dlopen failed: library "libnative.so" not found
+
+FATAL EXCEPTION: main
+Process: yg.cnuigeth, PID: 6164
+java.lang.UnsatisfiedLinkError: dlopen failed: library "libnative.so" not found
+        at java.lang.Runtime.loadLibrary0(Runtime.java:1101)
+        at java.lang.Runtime.loadLibrary0(Runtime.java:1012)
+        at java.lang.System.loadLibrary(System.java:1765)
+        at java.lang.System.loadLibrary(Native Method)
+        at com.facebook.katana.act.LoginActivity.onCreate(Unknown Source:49)
+        at android.app.Activity.performCreate(Activity.java:9363)
+        at android.app.Activity.performCreate(Activity.java:9332)
+        at android.app.Instrumentation.callActivityOnCreate(Instrumentation.java:1526)
+        at android.app.ActivityThread.performLaunchActivity(ActivityThread.java:4436)
+        at android.app.ActivityThread.handleLaunchActivity(ActivityThread.java:4685)
+        at android.app.servertransaction.LaunchActivityItem.execute(LaunchActivityItem.java:112)
+        at android.app.servertransaction.TransactionExecutor.executeNonLifecycleItem(TransactionExecutor.java:174)
+        at android.app.servertransaction.TransactionExecutor.executeTransactionItems(TransactionExecutor.java:109)
+        at android.app.servertransaction.TransactionExecutor.execute(TransactionExecutor.java:81)
+        at android.app.ActivityThread$H.handleMessage(ActivityThread.java:2895)
+        at android.os.Handler.dispatchMessage(Handler.java:107)
+        at android.os.Looper.loopOnce(Looper.java:257)
+        at android.os.Looper.loop(Looper.java:342)
+        at android.app.ActivityThread.main(ActivityThread.java:9634)
+        at java.lang.reflect.Method.invoke(Native Method)
+        at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:619)
+        at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:929)
+
+[SM S918B::yg.cnuigeth ]->
+Thank you for using Frida!
+PS C:\Users\yasse>
+
+now with frida message_bypass.js script output :
+
+
+PS C:\Users\yasse> frida -U -f yg.cnuigeth -l C:\Users\yasse\Desktop\Bypass\message_bypass.js
+     ____
+    / _  |   Frida 17.2.15 - A world-class dynamic instrumentation toolkit
+   | (_| |
+    > _  |   Commands:
+   /_/ |_|       help      -> Displays the help system
+   . . . .       object?   -> Display information about 'object'
+   . . . .       exit/quit -> Exit
+   . . . .
+   . . . .   More info at https://frida.re/docs/home/
+   . . . .
+   . . . .   Connected to SM S918B (id=R3CW30SHFZB)
+Spawned yg.cnuigeth. Resuming main thread!
+[SM S918B::yg.cnuigeth ]-> [*] Message-Level Bypass Script
+[*] This approach modifies the result messages directly
+[SUCCESS] Message handler hooked!
+[SUCCESS] Root bypass installed!
+[BYPASS] Root check bypassed
+
+[INTERCEPT] Message Handler Called
+[INTERCEPT] Message what: Java.Field{holder: { when=-5ms what=1 obj=USER OR GAME NOT REGISTERED target=com.facebook.katana.act.LoginActivity$斢衔鬹愠狱堪钓骖禞吳郀沜跲褼弦硠餓軓刧篖憯秃弳垜撤 }, fieldType: 2, fieldReturnType: I, value: 1}
+[INTERCEPT] Message obj: Java.Field{
+        holder: { when=-8ms what=1 obj=USER OR GAME NOT REGISTERED target=com.facebook.katana.act.LoginActivity$斢衔鬹愠狱堪钓骖禞吳郀沜跲褼弦硠餓軓刧篖憯秃弳垜撤 },
+        fieldType: 2,
+        fieldReturnType: [object Object],
+        value: USER OR GAME NOT REGISTERED,
+}
+[BYPASS] Found failure message - modifying to success
+[BYPASS] Modified message obj to: Java.Field{
+        holder: { when=-11ms what=1 obj=USER OR GAME NOT REGISTERED target=com.facebook.katana.act.LoginActivity$斢衔鬹愠狱堪钓骖禞吳郀沜跲褼弦硠餓軓刧篖憯秃弳垜撤 },
+        fieldType: 2,
+        fieldReturnType: [object Object],
+        value: USER OR GAME NOT REGISTERED,
+}
+Process crashed: Bad access due to invalid address
+
+***
+*** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***
+Build fingerprint: 'samsung/dm3qxeea/dm3q:15/AP3A.240905.015.A2/S918BXXS8DYG1:user/release-keys'
+Revision: '13'
+ABI: 'arm64'
+Processor: '5'
+Timestamp: 2025-08-11 14:09:47.464981238+0100
+Process uptime: 13s
+Cmdline: yg.cnuigeth
+pid: 7032, tid: 7032, name: yg.cnuigeth  >>> yg.cnuigeth <<<
+uid: 10452
+tagged_addr_ctrl: 0000000000000001 (PR_TAGGED_ADDR_ENABLE)
+pac_enabled_keys: 000000000000000f (PR_PAC_APIAKEY, PR_PAC_APIBKEY, PR_PAC_APDAKEY, PR_PAC_APDBKEY)
+signal 11 (SIGSEGV), code 1 (SEGV_MAPERR), fault addr 0x0000000000000010
+Cause: null pointer dereference
+    x0  0000000000000000  x1  0000007fe9fd02a0  x2  0000007fe9fceea0  x3  0000000000000040
+    x4  000000000000003f  x5  00000000ffffffff  x6  0000000000000000  x7  0000000000000000
+    x8  000000000257c358  x9  0000000000000000  x10 0000000000000007  x11 0000007e3780d209
+    x12 0000007f0359a030  x13 000000007fffffff  x14 0000000000f326ae  x15 00000155bcb68664
+    x16 0000000000001400  x17 0000007daa2f1fc8  x18 0000000000000000  x19 0000007efdfddea0
+    x20 0000007fe9fd02a0  x21 b400007e3926ec00  x22 b400007e392b8000  x23 0000007f022bd940
+    x24 0000000002010b38  x25 0000000000000000  x26 0000000002002810  x27 000000006fde48f8
+    x28 0000007fe9fd02a0  x29 0000007fe9fcee40
+    lr  0000007e36f444d0  sp  0000007fe9fced50  pc  0000007e36e891ac  pst 0000000060001000
+19 total frames
+backtrace:
+      #00 pc 00000000002891ac  /apex/com.android.art/lib64/libart.so (artQuickGenericJniTrampoline+80) (BuildId: 80d2ab18f9d259d8e546c1e6bae752b1)
+      #01 pc 00000000003444cc  /apex/com.android.art/lib64/libart.so (art_quick_generic_jni_trampoline+92) (BuildId: 80d2ab18f9d259d8e546c1e6bae752b1)
+      #02 pc 000000000093bca8  /data/misc/apexdata/com.android.art/dalvik-cache/arm64/boot.oat (android.os.Handler.dispatchMessage+152)
+      #03 pc 000000000093f634  /data/misc/apexdata/com.android.art/dalvik-cache/arm64/boot.oat (android.os.Looper.loopOnce+980)
+      #04 pc 000000000093f1b8  /data/misc/apexdata/com.android.art/dalvik-cache/arm64/boot.oat (android.os.Looper.loop+632)
+      #05 pc 00000000006e4ce4  /data/misc/apexdata/com.android.art/dalvik-cache/arm64/boot.oat (android.app.ActivityThread.main+2132)
+      #06 pc 000000000032d460  /apex/com.android.art/lib64/libart.so (art_quick_invoke_static_stub+640) (BuildId: 80d2ab18f9d259d8e546c1e6bae752b1)
+      #07 pc 00000000003273d0  /apex/com.android.art/lib64/libart.so (_jobject* art::InvokeMethod<(art::PointerSize)8>(art::ScopedObjectAccessAlreadyRunnable const&, _jobject*, _jobject*, _jobject*, unsigned long)+544) (BuildId: 80d2ab18f9d259d8e546c1e6bae752b1)
+      #08 pc 00000000005c6f80  /apex/com.android.art/lib64/libart.so (art::Method_invoke(_JNIEnv*, _jobject*, _jobject*, _jobjectArray*) (.__uniq.165753521025965369065708152063621506277)+32) (BuildId: 80d2ab18f9d259d8e546c1e6bae752b1)
+      #09 pc 0000000000da33b4  /data/misc/apexdata/com.android.art/dalvik-cache/arm64/boot.oat (art_jni_trampoline+116)
+      #10 pc 0000000000c5c474  /data/misc/apexdata/com.android.art/dalvik-cache/arm64/boot.oat (com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run+116)
+      #11 pc 0000000000c66888  /data/misc/apexdata/com.android.art/dalvik-cache/arm64/boot.oat (com.android.internal.os.ZygoteInit.main+3272)
+      #12 pc 000000000032d460  /apex/com.android.art/lib64/libart.so (art_quick_invoke_static_stub+640) (BuildId: 80d2ab18f9d259d8e546c1e6bae752b1)
+      #13 pc 000000000032bfc8  /apex/com.android.art/lib64/libart.so (art::JValue art::InvokeWithVarArgs<_jmethodID*>(art::ScopedObjectAccessAlreadyRunnable const&, _jobject*, _jmethodID*, std::__va_list)+800) (BuildId: 80d2ab18f9d259d8e546c1e6bae752b1)
+      #14 pc 000000000064a488  /apex/com.android.art/lib64/libart.so (art::JNI<true>::CallStaticVoidMethodV(_JNIEnv*, _jclass*, _jmethodID*, std::__va_list)+156) (BuildId: 80d2ab18f9d259d8e546c1e6bae752b1)
+      #15 pc 00000000000df42c  /system/lib64/libandroid_runtime.so (_JNIEnv::CallStaticVoidMethod(_jclass*, _jmethodID*, ...)+108) (BuildId: 3bdee92f519d7de6e8397d79bb7e011b)
+      #16 pc 00000000000f5328  /system/lib64/libandroid_runtime.so (android::AndroidRuntime::start(char const*, android::Vector<android::String8> const&, bool)+928) (BuildId: 3bdee92f519d7de6e8397d79bb7e011b)
+      #17 pc 00000000000025c8  /system/bin/app_process64 (main+1288) (BuildId: 9846ac260d944f605cabbd1beb7a7aa0)
+      #18 pc 000000000008f91c  /apex/com.android.runtime/lib64/bionic/libc.so (__libc_init+120) (BuildId: d02d1c3363b4a4418dcd98f4845bd7a4)
+***
+[SM S918B::yg.cnuigeth ]->
+
+Thank you for using Frida!
+PS C:\Users\yasse>
+
+so pressing login first time doesnt crash but doesnt login and give output on the terminal pressing it sencond time crashes the app  and give output on terminal
